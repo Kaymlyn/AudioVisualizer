@@ -1,14 +1,21 @@
 package com.knightowlgames.audiovisualizer;
 
 import lombok.NoArgsConstructor;
+
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FontMetrics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.geom.Line2D;
+import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Vector;
 
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
@@ -18,36 +25,24 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 
 public class Parser {
     AudioInputStream audioInputStream;
-    String errStr;
-    double duration, seconds;
+    double duration;
+
     File file;
     String fileName;
-    SamplingGraph samplingGraph;
     String waveformFilename;
-    Color imageBackgroundColor = new Color(20,20,20);
+    Color imageBackgroundColor;
 
-    public Parser(String fileRoot, String fileName) throws UnsupportedAudioFileException, IOException {
+    public Parser(String fileRoot, String fileName,Color globalBackground) {
         this.fileName = fileRoot + fileName + ".wav";
-        file = new File(this.fileName);
         this.waveformFilename = fileRoot + fileName + ".png";
+        file = new File(this.fileName);
+        imageBackgroundColor = globalBackground;
     }
 
-    public void createAudioInputStream() throws Exception {
-        if (file != null && file.isFile()) {
-            try {
-                errStr = null;
-                audioInputStream = AudioSystem.getAudioInputStream(file);
-                long milliseconds = (long)((audioInputStream.getFrameLength() * 1000) / audioInputStream.getFormat().getFrameRate());
-                duration = milliseconds / 1000.0;
-                samplingGraph = new SamplingGraph();
-                samplingGraph.createWaveForm(audioInputStream,200,6000, waveformFilename);
-            } catch (Exception ex) {
-                reportStatus(ex.toString());
-                throw ex;
-            }
-        } else {
-            reportStatus("Audio file required.");
-        }
+    public void createAudioInputStream(int width, int height) throws UnsupportedAudioFileException, IOException {
+        audioInputStream = AudioSystem.getAudioInputStream(file);
+        duration = (long)((audioInputStream.getFrameLength() * 1000) / audioInputStream.getFormat().getFrameRate()) / 1000.0;
+        new SamplingGraph().createWaveForm(audioInputStream, new Rectangle(width,height), waveformFilename);
     }
     /**
      * Render a WaveForm.
@@ -58,10 +53,7 @@ public class Parser {
         Color jfcBlue = new Color(0, 0, 255);
         Color shift = new Color(71, 4, 2);
 
-        public void createWaveForm(AudioInputStream audioInputStream, int height, int width, String destination) throws IOException {
-
-            //This should be handled as a different concern and should be broken out from the core renderer since it's kinda optional
-            int infopad = 15;
+        public void createWaveForm(AudioInputStream audioInputStream, Rectangle imageBounds, String destination) throws IOException {
 
             AudioFormat format = audioInputStream.getFormat();
             byte[] audioBytes = new byte[
@@ -81,19 +73,19 @@ public class Parser {
                     .getLast();
 
             List<Integer> balanced = Arrays.stream(audioData)
-                    .map(value -> ((height - infopad) * value/ max))
+                    .map(value -> (imageBounds.height * value/ max))
                     .boxed()
                     .toList();
 
             Vector<Line2D.Double> lines = new Vector<>();
 
             int y_last = 0;
-            for (int x = 0; x < width; x++) {
-                Integer value = balanced.get((audioBytes.length / format.getFrameSize()/width) * format.getChannels() * x);
+            for (int x = 0; x < imageBounds.width; x++) {
+                Integer value = balanced.get((audioBytes.length / format.getFrameSize()/imageBounds.width) * format.getChannels() * x);
                 //scale data to the viewport height
-                int y_new = height * (128 - value) / 256;
+                int y_new = imageBounds.height * (128 - value) / 256;
                 //add vertical line to array offset by x pixels.
-                lines.add(new Line2D.Double(x, (double) y_last - 15, x, y_new - ((double) 15 /2)));
+                lines.add(new Line2D.Double(x, y_last, x, y_new));
                 //return the last height
                 y_last = y_new;
             }
@@ -101,14 +93,15 @@ public class Parser {
             // Write generated image to a file
             // Save as PNG
             ImageIO.write(
-                    renderWaveform(lines, width, height, infopad),
+                    renderWaveform(lines, imageBounds, true),
                     "png",
                     new File(destination));
         }
 
         //translates data from byte input into an array of integers based on the
-        //audio format. This is the magic.
-        public int[] translate(AudioFormat format, byte[] audioBytes) {
+        //audio format. This is the magic. If you wrote this please reach out to where you published it, so I can give
+        //proper credit
+        private int[] translate(AudioFormat format, byte[] audioBytes) {
 
             int[] audioData = null;
             if (format.getSampleSizeInBits() == 16) {
@@ -147,19 +140,36 @@ public class Parser {
             return audioData;
         }
 
+        private void renderInfoBox(Graphics2D g2, Rectangle imageBounds, Font font, String info, Color backgroundColor, Color textColor) {
 
-        private BufferedImage renderWaveform(Vector<Line2D.Double> lines, int viewportWidth, int viewportHeight, int INFOPAD) {
-            BufferedImage bufferedImage = new BufferedImage(viewportWidth, viewportHeight, BufferedImage.TYPE_INT_RGB);
+            FontMetrics fontMetrics =  new BufferedImage(1,1, BufferedImage.TYPE_INT_ARGB)
+                    .getGraphics()
+                    .getFontMetrics(font);
+            Rectangle2D stringBounds = fontMetrics.getStringBounds(info,g2);
+
+            g2.setColor(backgroundColor);
+            g2.fillRect(0, imageBounds.height-(int)(stringBounds.getHeight()), (int)stringBounds.getWidth() + 4, imageBounds.height + (int)stringBounds.getHeight() + 4);
+            g2.setColor(textColor);
+            g2.setFont(font);
+            g2.drawString(info, 3, imageBounds.height-4);
+        }
+
+        private BufferedImage renderWaveform(Vector<Line2D.Double> lines, Rectangle imageBounds, boolean withInfo) {
+            BufferedImage bufferedImage = new BufferedImage(imageBounds.width, imageBounds.height, BufferedImage.TYPE_INT_RGB);
+
             Graphics2D g2 = bufferedImage.createGraphics();
 
             g2.setBackground(imageBackgroundColor);
-            g2.clearRect(0, 0, viewportWidth, viewportHeight);
-            g2.setColor(Color.white);
-            g2.fillRect(0, viewportHeight-INFOPAD, viewportWidth, viewportHeight + INFOPAD);
+            g2.clearRect(0, 0, imageBounds.width, imageBounds.height);
 
-            g2.setColor(Color.black);
-            g2.setFont(font12);
-            g2.drawString("File: " + fileName + "  Length: " + duration + "  Position: " + seconds, 3, viewportHeight-4);
+            if(withInfo) {
+                renderInfoBox(g2,
+                        imageBounds,
+                        font12,
+                        "File: " + fileName + "  Length: " + duration + " seconds",
+                        Color.WHITE,
+                        Color.BLUE);
+            }
 
             // .. render sampling graph ..
             jfcBlue = new Color((jfcBlue.getRed() + shift.getRed())%255,(jfcBlue.getGreen() + shift.getGreen())%255, (jfcBlue.getBlue() + shift.getBlue())%255);
@@ -175,10 +185,4 @@ public class Parser {
         }
 
     } // End class SamplingGraph
-
-    private void reportStatus(String msg) {
-        if ((errStr = msg) != null) {
-            System.out.println(errStr);
-        }
-    }
 }

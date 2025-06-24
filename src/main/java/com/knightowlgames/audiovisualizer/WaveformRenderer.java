@@ -3,7 +3,11 @@ package com.knightowlgames.audiovisualizer;
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.geom.Line2D;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
@@ -13,6 +17,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Render a WaveForm.
@@ -37,39 +42,61 @@ class WaveformRenderer {
         this.shift = shift;
         duration = (long)((this.audio.getFrameLength() * 1000) / this.audio.getFormat().getFrameRate()) / 1000.0;
     }
-
     public void createWaveForm(String destination) throws IOException {
+        createWaveForm(destination, false, null, 0);
+    }
 
+    public void createWaveForm(String destination, boolean partial, TimeUnit unit, int duration) throws IOException {
+
+        //Hz 48000 = 1 second
+        //192000 bytes = 1 second
         AudioFormat format = audio.getFormat();
-        byte[] audioBytes = new byte[
+
+        byte[] audioBytes;
+        if(partial) {
+            audioBytes = new byte[(int)(unit.toSeconds(duration) * 48000 * 4)];
+        } else {
+            audioBytes = new byte[
                 (int) (audio.getFrameLength()
                         * format.getFrameSize())];
+        }
 
-        System.out.println("AudioFormat: " + format + " "+audio.read(audioBytes) + " bytes read");
+        System.out.println("AudioFormat: " + format + " " + audio.read(audioBytes) + " bytes read");
 
         // Write generated image to a file
         // Save as PNG
+        File imageFile = new File(destination);
+        if(!imageFile.getParentFile().exists()){
+            if(!imageFile.mkdirs()) {
+                throw new IOException("Unable to create file to store image.");
+            }
+        }
         ImageIO.write(
                 createWaveformImage(
                         constructWaveForm(
                                 translate(format, audioBytes),
                                 audioBytes,
-                                format),
+                                format,
+                                TimeUnit.SECONDS,
+                                1),
                         destination,
                         true),
                 "png",
                 new File(destination));
     }
 
-    private Vector<Line2D.Double> constructWaveForm(int[] audioData, byte[] audioBytes, AudioFormat format) {
-        int max = Arrays.stream(audioData)
+    private Vector<Line2D.Double> constructWaveForm(int[] audioData, byte[] audioBytes, AudioFormat format, TimeUnit unit, int sampleLength) {
+
+        int[] data =Arrays.copyOf(audioData, (int)(unit.toMillis(1) * format.getFrameSize() * format.getSampleRate()));
+
+        int max = Arrays.stream(data)
                 .map(Math::abs)
                 .boxed()
                 .sorted(Comparator.naturalOrder())
                 .toList()
                 .getLast();
 
-        List<Integer> balanced = Arrays.stream(audioData)
+        List<Integer> balanced = Arrays.stream(data)
                 .map(value -> (imageBounds.height * value / max))
                 .boxed()
                 .toList();
@@ -78,7 +105,7 @@ class WaveformRenderer {
 
         int y_last = 0;
         for (int x = 0; x < imageBounds.width; x++) {
-            Integer value = balanced.get((audioBytes.length / format.getFrameSize() / imageBounds.width) * format.getChannels() * x);
+            Integer value = balanced.get((audioData.length / format.getFrameSize() / imageBounds.width) * format.getChannels() * x);
             //scale data to the viewport height
             int y_new = imageBounds.height * (128 - value) / 256;
             //add vertical line to array offset by x pixels.
@@ -152,6 +179,7 @@ class WaveformRenderer {
         }
         return g2;
     }
+
     private BufferedImage createWaveformImage(Vector<Line2D.Double> lines, String destination, boolean withInfo) {
 
         BufferedImage image = new BufferedImage(imageBounds.width, imageBounds.height, BufferedImage.TYPE_INT_RGB);

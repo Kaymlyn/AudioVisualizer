@@ -17,7 +17,7 @@ public class Driver {
         String fileName = "short";
 
         WaveformRenderer waveformRenderer = new WaveformRenderer(
-                new Rectangle(600, 200),
+                new Rectangle(6000, 200),
                 new Color(20, 20, 20),
                 new Color(0, 0, 255),
                 new Color(71, 4, 2))
@@ -28,7 +28,8 @@ public class Driver {
         WaveformRenderer.Waveform waveform = waveformRenderer.forAudio(AudioSystem.getAudioInputStream(new File(rootPath + fileName + ".wav")));
 
         waveform.generate().saveToFile(new File(rootPath + "image/" + fileName + ".png"));
-        waveform.generate(TimeUnit.MILLISECONDS, 200).saveToFile(new File(rootPath + "image/" + fileName + "2.png"));
+        waveform.generate(TimeUnit.MILLISECONDS, 200)
+                .withFadeAdjustments(new Render.Fade(.2,.2,.2)).saveToFile(new File(rootPath + "image/" + fileName + "2.png"));
     }
 
 

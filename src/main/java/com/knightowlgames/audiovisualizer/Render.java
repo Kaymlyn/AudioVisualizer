@@ -19,10 +19,10 @@ import static com.knightowlgames.audiovisualizer.WaveformRenderer.Canvas;
 
 public class Render {
     
-    private int[] audioData;
-    private AudioFormat format;
-    private Canvas canvas;
-    private InfoBlock info;
+    private final int[] audioData;
+    private final AudioFormat format;
+    private final Canvas canvas;
+    private final InfoBlock info;
     
     Render(byte[] audioBytes, AudioFormat format, TimeUnit timeUnit, int duration, Canvas canvas, InfoBlock info) {
 
@@ -116,6 +116,17 @@ public class Render {
     }
 
     private Graphics2D renderWaveform(Graphics2D graphics, Vector<Line2D.Double> lines) {
+        return renderWaveform(graphics, lines, -1,new Fade(0,0,0));
+    }
+
+    private Graphics2D renderWaveform(Graphics2D graphics, Vector<Line2D.Double> lines, int lineLimit, Fade fadeRate) {
+        int totalLines;
+
+        if(lineLimit < 0 ) {
+            totalLines = lines.size();
+        } else {
+            totalLines = lineLimit;
+        }
         // .. render sampling graph ..
         Color currentColor = new Color(
                 (canvas.initialColor().getRed() + canvas.shift().getRed()) % 255,
@@ -124,14 +135,22 @@ public class Render {
         );
 
         graphics.setColor(currentColor);
-        for (int i = 1; i < lines.size(); i++) {
+        for (int i = 1; i < lines.size() && i < totalLines; i++) {
             currentColor = new Color((currentColor.getRed() + canvas.shift().getRed()) % 255,
                     (currentColor.getGreen() + canvas.shift().getGreen()) % 255,
                     (currentColor.getBlue() + canvas.shift().getBlue()) % 255);
-            graphics.setColor(currentColor);
+            graphics.setColor(fade(currentColor, fadeRate, totalLines - i));
             graphics.draw(lines.get(i));
         }
         return graphics;
+    }
+
+    private Color fade(Color current, Fade fadeRate, int fadeScale) {
+        return new Color(
+                (int) Math.max(current.getRed() - (fadeRate.redFade * fadeScale), canvas.globalBackground().getRed()),
+                (int) Math.max(current.getGreen() - (fadeRate.greenFade * fadeScale), canvas.globalBackground().getGreen()),
+                (int) Math.max(current.getBlue() - (fadeRate.blueFade * fadeScale), canvas.globalBackground().getBlue())
+        );
     }
     private Graphics2D prepareCanvas(BufferedImage image) {
         Graphics2D g2 = image.createGraphics();
@@ -140,7 +159,6 @@ public class Render {
         g2.clearRect(0, 0, canvas.imageBounds().width, canvas.imageBounds().height);
 
         if(info != null) {
-            float duration = (audioData.length*2/(format.getFrameSize()*format.getSampleRate()));
             FontMetrics fontMetrics = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
                     .getGraphics()
                     .getFontMetrics(info.infoFont());
@@ -154,6 +172,25 @@ public class Render {
         }
         return g2;
     }
+
+    private BufferedImage prepareImage (double percentage, Fade fade) {
+
+        int linesToRender;
+        if(percentage > 1 || percentage < 0) {
+            linesToRender = canvas.imageBounds().width;
+        } else {
+            linesToRender = (int)(canvas.imageBounds().width * percentage);
+        }
+
+        BufferedImage image = new BufferedImage(canvas.imageBounds().width, canvas.imageBounds().height, BufferedImage.TYPE_INT_RGB);
+        renderWaveform(
+                prepareCanvas(image),
+                constructWaveForm(),
+                linesToRender,
+                fade
+        ).dispose();
+        return image;
+    }
     
     public void saveToFile(File imageFile) throws IOException {
 
@@ -166,12 +203,21 @@ public class Render {
             }
         }
 
-        BufferedImage image = new BufferedImage(canvas.imageBounds().width, canvas.imageBounds().height, BufferedImage.TYPE_INT_RGB);
-        renderWaveform(
-                prepareCanvas(image),
-                constructWaveForm()
-        ).dispose();
-
-        ImageIO.write(image, "png", imageFile);
+        ImageIO.write(
+                prepareImage(
+                        -1,
+                        new Fade(.5,.5,.5)
+                ),
+                "png",
+                imageFile
+        );
     }
+
+    public Render withFadeAdjustments(Fade globalFade) {
+        reurn this;
+    }
+
+    public Render withPercentageAdjustments()
+
+    public record Fade(double redFade, double greenFade, double blueFade) {}
 }

@@ -1,6 +1,9 @@
 package com.knightowlgames.audiovisualizer;
 
 
+import com.knightowlgames.audiovisualizer.wave.Render;
+import com.knightowlgames.audiovisualizer.wave.WaveformRenderer;
+
 import javax.sound.sampled.AudioSystem;
 import java.awt.Color;
 import java.awt.Font;

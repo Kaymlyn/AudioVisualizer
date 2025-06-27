@@ -1,6 +1,4 @@
-package com.knightowlgames.audiovisualizer;
-
-import lombok.*;
+package com.knightowlgames.audiovisualizer.wave;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -13,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Render a WaveForm.
  */
-class WaveformRenderer {
+public class WaveformRenderer {
     private final Canvas canvas;
     private InfoBlock info;
 

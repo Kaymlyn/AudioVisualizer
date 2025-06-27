@@ -23,26 +23,30 @@ public class Render {
     private final AudioFormat format;
     private final Canvas canvas;
     private final InfoBlock info;
-    
-    Render(byte[] audioBytes, AudioFormat format, TimeUnit timeUnit, int duration, Canvas canvas, InfoBlock info) {
+    private Fade globalFade;
+    private double globalRenderPercentage;
 
-        audioData = translate(format, Arrays.copyOf(
-                        audioBytes,
-                        (int)(timeUnit.toMillis(duration) * format.getSampleRate() * format.getFrameSize())
-                ));
+    Render(byte[] audioBytes, AudioFormat format, TimeUnit timeUnit, double duration, Canvas canvas, InfoBlock info) {
+
+        int desiredDataLength = (int)(
+                timeUnit.toSeconds((long)(duration * 1000))/1000.0 * format.getSampleRate() * format.getFrameSize()
+        );
+
+        if(desiredDataLength < audioBytes.length && desiredDataLength > 0) {
+            audioData = translate(format, Arrays.copyOf(audioBytes, desiredDataLength));
+        } else {
+            audioData = translate(format, Arrays.copyOf(audioBytes,audioBytes.length));
+        }
+
         this.format = format;
         this.canvas = canvas;
         this.info = info;
+        this.globalFade = new Fade(0,0,0);
+        this.globalRenderPercentage = -1;
     }
 
     Render(byte[] audioBytes, AudioFormat format, Canvas canvas, InfoBlock info) {
-
-        audioData = translate(format, Arrays.copyOf(
-                audioBytes, audioBytes.length)
-        );
-        this.format = format;
-        this.canvas = canvas;
-        this.info = info;
+        this(audioBytes,format,TimeUnit.SECONDS,-1,canvas,info);
     }
     
     private Vector<Line2D.Double> constructWaveForm() {
@@ -115,14 +119,9 @@ public class Render {
         return audioData;
     }
 
-    private Graphics2D renderWaveform(Graphics2D graphics, Vector<Line2D.Double> lines) {
-        return renderWaveform(graphics, lines, -1,new Fade(0,0,0));
-    }
-
     private Graphics2D renderWaveform(Graphics2D graphics, Vector<Line2D.Double> lines, int lineLimit, Fade fadeRate) {
         int totalLines;
-
-        if(lineLimit < 0 ) {
+        if(lineLimit < 0 || lineLimit > lines.size()) {
             totalLines = lines.size();
         } else {
             totalLines = lineLimit;
@@ -146,12 +145,23 @@ public class Render {
     }
 
     private Color fade(Color current, Fade fadeRate, int fadeScale) {
+
         return new Color(
-                (int) Math.max(current.getRed() - (fadeRate.redFade * fadeScale), canvas.globalBackground().getRed()),
-                (int) Math.max(current.getGreen() - (fadeRate.greenFade * fadeScale), canvas.globalBackground().getGreen()),
-                (int) Math.max(current.getBlue() - (fadeRate.blueFade * fadeScale), canvas.globalBackground().getBlue())
+                fadeComponent(current.getRed(),canvas.globalBackground().getRed(), fadeRate.redFade, fadeScale),
+                fadeComponent(current.getGreen(), canvas.globalBackground().getGreen(), fadeRate.greenFade, fadeScale),
+                fadeComponent(current.getBlue(), canvas.globalBackground().getBlue(), fadeRate.blueFade, fadeScale)
         );
     }
+
+    public int fadeComponent(int raw, int target, double fadeRate, int fadeScale) {
+        double adjuster = .01 * fadeRate * fadeScale;
+        if(adjuster > 1) {
+            return target;
+        } else {
+            return (int) (raw + ((target - raw) * adjuster));
+        }
+    }
+
     private Graphics2D prepareCanvas(BufferedImage image) {
         Graphics2D g2 = image.createGraphics();
 
@@ -205,19 +215,44 @@ public class Render {
 
         ImageIO.write(
                 prepareImage(
-                        -1,
-                        new Fade(.5,.5,.5)
+                        globalRenderPercentage,
+                        globalFade
                 ),
                 "png",
                 imageFile
         );
     }
 
-    public Render withFadeAdjustments(Fade globalFade) {
-        reurn this;
+    public void saveToAnimatedGif(File imageFile) throws IOException {
+
+        // Write generated image to a file
+        // Save as PNG
+
+        if(!imageFile.getParentFile().exists()){
+            if(!imageFile.mkdirs()) {
+                throw new IOException("Unable to create file to store image.");
+            }
+        }
+
+        ImageIO.write(
+                prepareImage(
+                        globalRenderPercentage,
+                        globalFade
+                ),
+                "png",
+                imageFile
+        );
     }
 
-    public Render withPercentageAdjustments()
+    public Render withFade(Fade globalFade) {
+        this.globalFade = globalFade;
+        return this;
+    }
+
+    public Render renderPercentage(double percent ) {
+        this.globalRenderPercentage = percent;
+        return this;
+    }
 
     public record Fade(double redFade, double greenFade, double blueFade) {}
 }

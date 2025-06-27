@@ -21,10 +21,10 @@ class WaveformRenderer {
     public record Canvas(Rectangle imageBounds, Color globalBackground, Color initialColor, Color shift) { }
 
     public WaveformRenderer(Rectangle imageBounds, Color backgroundColor, Color initialColor, Color colorShift) {
-        this.canvas = new Canvas(imageBounds,backgroundColor,initialColor,colorShift);
+        this(new Canvas(imageBounds,backgroundColor,initialColor,colorShift));
     }
 
-    public WaveformRenderer(Canvas canvas) {
+    private WaveformRenderer(Canvas canvas) {
         this.canvas = canvas;
     }
 
@@ -39,7 +39,7 @@ class WaveformRenderer {
             System.out.println("AudioFormat: " + format + " " + audioInputStream.read(audioBytes) + " bytes read");
         }
 
-        public Render generate(TimeUnit timeUnit, int audioLength) {
+        public Render generate(TimeUnit timeUnit, double audioLength) {
             return new Render(audioBytes, format, timeUnit, audioLength, canvas, info);
         }
 
@@ -49,8 +49,7 @@ class WaveformRenderer {
     }
 
     public WaveformRenderer withInfo(Font style, Color infoBackgroundColor, Color textColor, String info) {
-        this.info = new InfoBlock(style,infoBackgroundColor,textColor,info);
-        return this;
+        return withInfo(new InfoBlock(style,infoBackgroundColor,textColor,info));
     }
 
     public WaveformRenderer withInfo(InfoBlock info) {

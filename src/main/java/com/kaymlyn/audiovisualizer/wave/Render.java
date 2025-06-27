@@ -1,4 +1,4 @@
-package com.knightowlgames.audiovisualizer.wave;
+package com.kaymlyn.audiovisualizer.wave;
 
 import javax.imageio.ImageIO;
 import javax.sound.sampled.AudioFormat;
@@ -14,8 +14,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static com.knightowlgames.audiovisualizer.wave.WaveformRenderer.InfoBlock;
-import static com.knightowlgames.audiovisualizer.wave.WaveformRenderer.Canvas;
+import static com.kaymlyn.audiovisualizer.wave.WaveformRenderer.InfoBlock;
+import static com.kaymlyn.audiovisualizer.wave.WaveformRenderer.Canvas;
 
 public class Render {
     

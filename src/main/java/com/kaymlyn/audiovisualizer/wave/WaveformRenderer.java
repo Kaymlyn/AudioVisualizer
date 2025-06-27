@@ -1,4 +1,4 @@
-package com.knightowlgames.audiovisualizer.wave;
+package com.kaymlyn.audiovisualizer.wave;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;

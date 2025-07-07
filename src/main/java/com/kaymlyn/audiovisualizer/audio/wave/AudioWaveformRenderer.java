@@ -1,4 +1,6 @@
-package com.kaymlyn.audiovisualizer.wave;
+package com.kaymlyn.audiovisualizer.audio.wave;
+
+import com.kaymlyn.audiovisualizer.audio.Renderer;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -9,8 +11,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 
-import static com.kaymlyn.audiovisualizer.wave.AudioProcessor.InfoBlock;
-import static com.kaymlyn.audiovisualizer.wave.AudioProcessor.Canvas;
+import static com.kaymlyn.audiovisualizer.audio.AudioProcessor.InfoBlock;
+import static com.kaymlyn.audiovisualizer.audio.AudioProcessor.Canvas;
 
 public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRenderer> {
 
@@ -20,7 +22,7 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
     private Fade globalFade;
     private double globalRenderPercentage;
 
-    AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info, Fade fade, double renderPercentage) {
+    public AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info, Fade fade, double renderPercentage) {
 
         this.rawWaveform = waveformData;
         this.canvas = canvas;
@@ -29,7 +31,7 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
         this.globalRenderPercentage = renderPercentage;
     }
 
-    AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info) {
+    public AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info) {
         this(waveformData,canvas,info,new Fade(0,0,0), -1);
     }
 

@@ -1,9 +1,10 @@
 package com.kaymlyn.audiovisualizer;
 
 
-import com.kaymlyn.audiovisualizer.wave.AudioWaveformRenderer;
-import com.kaymlyn.audiovisualizer.wave.AudioProcessor;
-import com.kaymlyn.audiovisualizer.wave.Fading;
+import com.kaymlyn.audiovisualizer.audio.wave.AudioWaveformRenderer;
+import com.kaymlyn.audiovisualizer.audio.AudioProcessor;
+import com.kaymlyn.audiovisualizer.audio.wave.Fading;
+import com.kaymlyn.audiovisualizer.audio.wave.Waveform;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
@@ -31,7 +32,7 @@ public class Driver {
                         Color.white,
                         Color.blue,
                         "File: " + fileName + ".wav");
-        AudioProcessor.Waveform waveform = waveformRenderer.forAudio(AudioSystem.getAudioInputStream(new File(rootPath + fileName + ".wav")));
+        Waveform waveform = waveformRenderer.waveformForAudio(AudioSystem.getAudioInputStream(new File(rootPath + fileName + ".wav")));
 
         waveform.generate().renderToFile(new File(rootPath + "image/" + fileName + ".png"));
 
@@ -50,7 +51,7 @@ public class Driver {
                         Color.blue,
                         "File: " + fileName + ".wav");
 
-        waveformRenderer.forAudio(AudioSystem.getAudioInputStream(new File(rootPath + fileName + ".wav")))
+        waveformRenderer.waveformForAudio(AudioSystem.getAudioInputStream(new File(rootPath + fileName + ".wav")))
                 .generate()
                 .withFade(new AudioWaveformRenderer.Fade(.025, .035, .015))
                 .renderToFile(new File(rootPath + "image/" + fileName + "3.gif"));
@@ -61,7 +62,6 @@ public class Driver {
             mp3 = fileInputStream.readAllBytes();
         }
 
-        AudioInputStream.nullInputStream().read(mp3);
         waveformRenderer = new AudioProcessor(
                 new Rectangle(600, 300),
                 new Color(20, 20, 20),
@@ -71,8 +71,9 @@ public class Driver {
                         Color.white,
                         Color.blue,
                         "File: " + fileName + ".wav");
-        waveformRenderer.forAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2)))
+        waveformRenderer.waveformForAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2)))
                 .generate()
                 .renderToFile(new File(rootPath + "image/Firefly.png"));
+        waveformRenderer.powerSeriesForAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2))).generate();
     }
 }

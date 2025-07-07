@@ -1,4 +1,6 @@
-package com.kaymlyn.audiovisualizer.wave;
+package com.kaymlyn.audiovisualizer.audio.wave;
+
+import com.kaymlyn.audiovisualizer.audio.Renderer;
 
 public interface  Fading<T extends Renderer> {
 

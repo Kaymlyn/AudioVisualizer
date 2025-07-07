@@ -1,4 +1,4 @@
-package com.kaymlyn.audiovisualizer.wave;
+package com.kaymlyn.audiovisualizer.audio;
 
 import java.awt.image.BufferedImage;
 import java.io.File;

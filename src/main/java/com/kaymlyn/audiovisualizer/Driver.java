@@ -38,7 +38,6 @@ public class Driver {
 
         waveform.generate()
                 .withFade(new Fading.Fade(1, 1, 1))
-                .renderPercentage(.5)
                 .renderToFile(new File(rootPath + "image/" + fileName + "2.png"));
 
         waveformRenderer = new AudioProcessor(
@@ -62,18 +61,17 @@ public class Driver {
             mp3 = fileInputStream.readAllBytes();
         }
 
-        waveformRenderer = new AudioProcessor(
+        AudioProcessor audioProcessor = new AudioProcessor(
                 new Rectangle(600, 300),
                 new Color(20, 20, 20),
                 new Color(0, 0, 255),
-                new Color(71, 4, 2))
-                .withInfo(new Font("serif", Font.PLAIN, 12),
-                        Color.white,
-                        Color.blue,
-                        "File: " + fileName + ".wav");
-        waveformRenderer.waveformForAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2)))
+                new Color(71, 4, 2));
+
+        audioProcessor.waveformForAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2)))
                 .generate()
-                .renderToFile(new File(rootPath + "image/Firefly.png"));
-        waveformRenderer.powerSeriesForAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2))).generate();
+                .withFade(new AudioWaveformRenderer.Fade(1, 1, 1))
+                .renderToFile(new File(rootPath + "image/Firefly.png"), 6300);
+
+//        waveformRenderer.powerSeriesForAudio(new AudioInputStream(new ByteArrayInputStream(mp3), mp3Format, (mp3.length / 2))).generate();
     }
 }

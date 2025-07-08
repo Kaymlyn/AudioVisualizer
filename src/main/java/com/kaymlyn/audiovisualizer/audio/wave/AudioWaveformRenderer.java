@@ -20,19 +20,17 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
     private final InfoBlock info;
     private final List<Line2D.Double> rawWaveform;
     private Fade globalFade;
-    private double globalRenderPercentage;
 
-    public AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info, Fade fade, double renderPercentage) {
+    public AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info, Fade fade) {
 
         this.rawWaveform = waveformData;
         this.canvas = canvas;
         this.info = info;
         this.globalFade = fade;
-        this.globalRenderPercentage = renderPercentage;
     }
 
     public AudioWaveformRenderer(List<Line2D.Double> waveformData, Canvas canvas, InfoBlock info) {
-        this(waveformData,canvas,info,new Fade(0,0,0), -1);
+        this(waveformData,canvas,info,new Fade(0,0,0));
     }
 
     //this method is unintelligent, need to add a way to change the image format, this is handled currently by a magic
@@ -40,26 +38,27 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
     //this will need to be refactored when video is generated.
     @Override
     public void renderToFile(File imageFile) throws IOException {
+        renderToFile(imageFile,canvas.imageBounds().width);
+    }
+
+    public void renderToFile(File imageFile,int index) throws IOException {
 
         if(!imageFile.getParentFile().exists()){
             if(!imageFile.mkdirs()) {
                 throw new IOException("Unable to create file to store image.");
             }
         }
-
+        prepareImage(index);
         ImageIO.write(
-                renderToImage(),
+                renderToImage(index),
                 "png",
                 imageFile
         );
     }
 
     @Override
-    public BufferedImage renderToImage() {
-        return prepareImage(
-                globalRenderPercentage,
-                globalFade
-        );
+    public BufferedImage renderToImage(int frameIndex) {
+        return prepareImage(frameIndex);
     }
 
     //TODO: actual documentation
@@ -69,20 +68,8 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
         return this;
     }
 
-    public AudioWaveformRenderer renderPercentage(double percent ) {
-        this.globalRenderPercentage = percent;
-        return this;
-    }
+    private Graphics2D render(Graphics2D graphics, int cyclicalCanvasLength, int offset, Fade fadeRate) {
 
-
-    private Graphics2D render(Graphics2D graphics, int lineLimit, Fade fadeRate) {
-        //total number of lines from the left to render. Fade is not considered in this calculation
-        int totalLines;
-        if(lineLimit < 0 || lineLimit > rawWaveform.size()) {
-            totalLines = rawWaveform.size();
-        } else {
-            totalLines = lineLimit;
-        }
 
         //preserve starting color for additional renders.
         Color currentColor = new Color(
@@ -93,20 +80,25 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
 
         graphics.setColor(currentColor);
 
-        //fade is calculated based on the overall image. need to identify a way to set an offset. Ideally, if the
-        //waveform stops at the middle of the canvas and the fade rate would require the whole canvas to complete
-        //the waveform at the edge of the canvas should only be half faded.
-        for (int i = 1; i < rawWaveform.size() && i < totalLines; i++) {
+        for (int i = 0 ; i < rawWaveform.size() && i < cyclicalCanvasLength; i++) {
             currentColor = new Color((currentColor.getRed() + canvas.shift().getRed()) % 255,
                     (currentColor.getGreen() + canvas.shift().getGreen()) % 255,
                     (currentColor.getBlue() + canvas.shift().getBlue()) % 255);
 
+            int fadeScale = offset%cyclicalCanvasLength - i;
+            if(fadeScale < 0) {
+                fadeScale = offset%cyclicalCanvasLength + cyclicalCanvasLength - i;
+            }
+
             graphics.setColor(new Color(
-                    fadeComponent(currentColor.getRed(), canvas.globalBackground().getRed(), fadeRate.redFade(), totalLines - i),
-                    fadeComponent(currentColor.getGreen(), canvas.globalBackground().getGreen(), fadeRate.greenFade(), totalLines - i),
-                    fadeComponent(currentColor.getBlue(), canvas.globalBackground().getBlue(), fadeRate.blueFade(), totalLines - i)
+                    fadeComponent(currentColor.getRed(), canvas.globalBackground().getRed(), fadeRate.redFade(), fadeScale, canvas.imageBounds().width),
+                    fadeComponent(currentColor.getGreen(), canvas.globalBackground().getGreen(), fadeRate.greenFade(), fadeScale, canvas.imageBounds().width),
+                    fadeComponent(currentColor.getBlue(), canvas.globalBackground().getBlue(), fadeRate.blueFade(), fadeScale, canvas.imageBounds().width)
             ));
-            graphics.draw(rawWaveform.get(i));
+
+            Line2D.Double line = rawWaveform.get(offset - cyclicalCanvasLength + (i*60));
+            line.setLine(i, line.y1, i, line.y2);
+            graphics.draw(line);
         }
         return graphics;
     }
@@ -132,20 +124,16 @@ public class AudioWaveformRenderer implements Renderer, Fading<AudioWaveformRend
         return g2;
     }
 
-    private BufferedImage prepareImage (double percentage, Fade fade) {
+    private BufferedImage prepareImage (int offset) {
 
-        int linesToRender;
-        if(percentage > 1 || percentage < 0) {
-            linesToRender = canvas.imageBounds().width;
-        } else {
-            linesToRender = (int)(canvas.imageBounds().width * percentage);
-        }
-
-        BufferedImage image = new BufferedImage(canvas.imageBounds().width, canvas.imageBounds().height, BufferedImage.TYPE_INT_RGB);
+        BufferedImage image = new BufferedImage(canvas.imageBounds().width,
+                canvas.imageBounds().height,
+                BufferedImage.TYPE_INT_RGB);
         render(
                 prepareCanvas(image),
-                linesToRender,
-                fade
+                canvas.imageBounds().width,
+                offset,
+                globalFade
         ).dispose();
         return image;
     }

@@ -39,11 +39,11 @@ public class AudioProcessor {
 
     public Waveform waveformForAudio(AudioInputStream audioInputStream) throws IOException {
 
-        return new Waveform(this, audioInputStream);
+        return new Waveform(this, audioInputStream,);
     }
 
-    public PowerSeries powerSeriesForAudio(AudioInputStream audioInputStream) throws IOException {
-        return new PowerSeries(this, audioInputStream);
+    public Waveform waveformForAudio(AudioInputStream audioInputStream, boolean compressToCanvas) throws IOException {
+        return new Waveform(this, audioInputStream, compressToCanvas);
     }
 
     //translates data from byte input into an array of integers based on the audio format. This is the magic.

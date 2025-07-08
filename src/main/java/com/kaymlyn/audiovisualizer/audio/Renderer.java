@@ -6,6 +6,6 @@ import java.io.IOException;
 
 public interface Renderer {
 
-    BufferedImage renderToImage();
+    BufferedImage renderToImage(int frameIndex);
     void renderToFile(File imageFile) throws IOException;
 }
